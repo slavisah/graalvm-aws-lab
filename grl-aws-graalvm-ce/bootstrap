@@ -1,0 +1,3 @@
+#!/bin/bash
+set -Eeuxo pipefail
+./grl-aws-graalvm-ce

@@ -1,0 +1,21 @@
+[
+    {
+      "name": "com.comsysto.lab.grlaws.ApiGatewayRequest",
+      "allPublicConstructors" : true,
+      "allPublicMethods": true
+    },
+    {
+      "name": "com.comsysto.lab.grlaws.Handler",
+      "allPublicConstructors" : true,
+      "allPublicMethods": true
+    },
+    {
+      "name": "java.util.LinkedHashMap",
+      "allPublicConstructors" : true,
+      "allPublicMethods": true
+    },
+    {
+      "name": "com.comsysto.lab.grlaws.ApiGatewayResponse",
+      "allPublicMethods": true
+    }
+  ]
