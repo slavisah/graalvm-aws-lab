@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-./check_env.sh || exit
+set -eo pipefail
+
+./check_env.sh
 
 s3bucket=$GRL_AWS_LAB_BUILDS_S3_BUCKET
 
