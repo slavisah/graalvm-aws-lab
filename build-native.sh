@@ -19,6 +19,6 @@ native-image --enable-url-protocols=http \
 zip -j "$packagedir/grl-aws-graalvm-ce.zip" "$scriptdir/grl-aws-graalvm-ce/bootstrap" "$scriptdir/grl-aws-graalvm-ce/target/grl-aws-graalvm-ce"
 
 (cd "$scriptdir/grl-aws-quarkus" &&
-mvn clean install &&
-cp "$scriptdir/grl-aws-quarkus/target/grl-aws-quarkus-0.0.1-SNAPSHOT-runner.jar" "$packagedir/grl-aws-quarkus-basic.jar"
+mvn clean install -Dnative &&
+cp "$scriptdir/grl-aws-quarkus/target/function.zip" "$packagedir/grl-aws-quarkus-native.zip"
 )
