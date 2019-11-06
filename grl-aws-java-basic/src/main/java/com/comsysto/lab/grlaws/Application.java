@@ -1,120 +1,110 @@
 package com.comsysto.lab.grlaws;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.amazonaws.services.lambda.runtime.ClientContext;
 import com.amazonaws.services.lambda.runtime.CognitoIdentity;
-import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 
 public class Application {
 
-    private static final String REQUEST_ID_HEADER_NAME = "lambda-runtime-aws-request-id";
-    private static final String RUNTIME_API_ENDPOINT_VARIABLE_NAME = "AWS_LAMBDA_RUNTIME_API";
-    private static final String HANDLER_VARIABLE_NAME = "_HANDLER";
+    private static final Logger log = LogManager.getLogger(Application.class);
 
-    public static void main(String[] args) {
-        CloseableHttpClient httpClient = HttpClients.createDefault();
-        ObjectMapper mapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        String runtimeApiEndpoint = System.getenv(RUNTIME_API_ENDPOINT_VARIABLE_NAME);
-        String handler = System.getenv(HANDLER_VARIABLE_NAME);
-        try {
-            RequestHandler<ApiGatewayRequest, ApiGatewayResponse> handlerInstance = (RequestHandler<ApiGatewayRequest, ApiGatewayResponse>)Class.forName(handler).newInstance();
-            while (true) {
-                HttpGet invocation = new HttpGet(String.format("http://%s/2018-06-01/runtime/invocation/next", runtimeApiEndpoint));
-                try (CloseableHttpResponse invocationResponse = httpClient.execute(invocation)) {
-                    HttpEntity entity = invocationResponse.getEntity();
-                    Header headers = invocationResponse.getFirstHeader(REQUEST_ID_HEADER_NAME);
-                    String requestId = headers != null ? headers.getValue() : null;
-                    ApiGatewayRequest request = mapper.readValue(entity.getContent(), ApiGatewayRequest.class);
-                    ApiGatewayResponse response = handlerInstance.handleRequest(request, new CustomContext(requestId));
-                    HttpPost post = new HttpPost(String.format("http://%s/2018-06-01/runtime/invocation/%s/response", runtimeApiEndpoint, requestId));
-                    post.setEntity(new StringEntity(mapper.writeValueAsString(response)));
-                    try (CloseableHttpClient httpPostClient = HttpClients.createDefault();
-                            CloseableHttpResponse answer = httpClient.execute(post)) {
+    private static Class<? extends RequestHandler<?, ?>> handlerClass;
+    private static ObjectMapper objectMapper = new ObjectMapper();
+    private static ObjectReader objectReader;
+    private static ObjectWriter objectWriter;
+
+    public Application() throws Exception {
+        objectMapper = new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
+        String handler = CustomRuntimeApi.handler();
+        handlerClass = (Class<? extends RequestHandler<?, ?>>)Class.forName(handler);
+        Method handlerMethod = discoverHandlerMethod(handlerClass);
+        objectReader = objectMapper.readerFor(handlerMethod.getParameterTypes()[0]);
+        objectWriter = objectMapper.writerFor(handlerMethod.getReturnType());
+    }
+
+    public static void main(String[] args) throws Exception {
+        new Application().bootstrap();
+    }
+
+    public void bootstrap() {
+        log.debug("Bootstrapping the lambda...");
+        AtomicBoolean running = new AtomicBoolean(true);
+        ObjectReader cognitoIdReader = objectMapper.readerFor(CognitoIdentity.class);
+        ObjectReader clientCtxReader = objectMapper.readerFor(ClientContext.class);
+
+        new Thread(() -> {
+
+            try {
+                URL requestUrl = CustomRuntimeApi.invocationNext();
+                while (running.get()) {
+                    HttpURLConnection requestConnection = (HttpURLConnection) requestUrl.openConnection();
+                    String requestId = requestConnection.getHeaderField(CustomRuntimeApi.LAMBDA_RUNTIME_AWS_REQUEST_ID);
+                    Object response;
+                    try {
+                        Object val = objectReader.readValue(requestConnection.getInputStream());
+                        RequestHandler handler = handlerClass.newInstance();
+                        response = handler.handleRequest(val,
+                                new CustomRuntimeContext(requestConnection, cognitoIdReader, clientCtxReader));
+                    } catch (Exception e) {
+                        log.error("Failure while running lambda", e);
+
+                        postResponse(CustomRuntimeApi.invocationError(requestId),
+                                new Error(e.getClass().getName(), e.getMessage()), objectMapper);
+                        continue;
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
+
+                    postResponse(CustomRuntimeApi.invocationResponse(requestId), response, objectMapper);
+                }
+            } catch (Exception e) {
+                try {
+                    log.error("First step error", e);
+                    postResponse(CustomRuntimeApi.initError(), new Error(e.getClass().getName(), e.getMessage()),
+                            objectMapper);
+                } catch (Exception ex) {
+                    log.error("Error sending failed!", ex);
                 }
             }
-        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-            e.printStackTrace();
+        }, "Lambda").start();
+    }
+
+    private void postResponse(URL url, Object response, ObjectMapper mapper) throws IOException {
+        HttpURLConnection responseConnection = (HttpURLConnection) url.openConnection();
+        responseConnection.setDoOutput(true);
+        responseConnection.setRequestMethod("POST");
+        mapper.writeValue(responseConnection.getOutputStream(), response);
+        while (responseConnection.getInputStream().read() != -1) {}
+    }
+
+    private Method discoverHandlerMethod(Class<? extends RequestHandler<?, ?>> handlerClass) {
+        final Method[] methods = handlerClass.getMethods();
+        Method method = null;
+        for (int i = 0; i < methods.length && method == null; i++) {
+            if (methods[i].getName().equals("handleRequest")) {
+                final Class<?>[] types = methods[i].getParameterTypes();
+                if (types.length == 2 && !types[0].equals(Object.class)) {
+                    method = methods[i];
+                }
+            }
         }
-    }
-}
-
-class CustomContext implements Context {
-
-    private String requestId;
-
-    public CustomContext(String requestId) {
-        this.requestId = requestId;
-    }
-
-    @Override
-    public String getAwsRequestId() {
-        return requestId;
-    }
-
-    @Override
-    public String getLogGroupName() {
-        return System.getenv("AWS_LAMBDA_LOG_GROUP_NAME");
-    }
-
-    @Override
-    public String getLogStreamName() {
-        return System.getenv("AWS_LAMBDA_LOG_STREAM_NAME");
-    }
-
-    @Override
-    public String getFunctionName() {
-        return null;
-    }
-
-    @Override
-    public String getFunctionVersion() {
-        return System.getenv("AWS_LAMBDA_FUNCTION_VERSION");
-    }
-
-    @Override
-    public String getInvokedFunctionArn() {
-        return null;
-    }
-
-    @Override
-    public CognitoIdentity getIdentity() {
-        return null;
-    }
-
-    @Override
-    public ClientContext getClientContext() {
-        return null;
-    }
-
-    @Override
-    public int getRemainingTimeInMillis() {
-        return 0;
-    }
-
-    @Override
-    public int getMemoryLimitInMB() {
-        return 0;
-    }
-
-    @Override
-    public LambdaLogger getLogger() {
-        return null;
+        if (method == null) {
+            method = methods[0];
+        }
+        return method;
     }
 }

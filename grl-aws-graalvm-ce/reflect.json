@@ -1,21 +1,45 @@
 [
     {
-      "name": "com.comsysto.lab.grlaws.ApiGatewayRequest",
-      "allPublicConstructors" : true,
-      "allPublicMethods": true
+        "name": "com.fasterxml.jackson.databind.ext.Java7SupportImpl",
+        "methods": [{ "name": "<init>", "parameterTypes": [] }]
     },
     {
-      "name": "com.comsysto.lab.grlaws.Handler",
-      "allPublicConstructors" : true,
-      "allPublicMethods": true
+        "name": "org.apache.logging.log4j.core.impl.Log4jContextFactory",
+        "methods": [{ "name": "<init>", "parameterTypes": [] }]
     },
     {
-      "name": "java.util.LinkedHashMap",
-      "allPublicConstructors" : true,
-      "allPublicMethods": true
+        "name": "org.apache.logging.log4j.core.lookup.JmxRuntimeInputArgumentsLookup",
+        "methods": [{ "name": "<init>", "parameterTypes": [] }]
     },
     {
-      "name": "com.comsysto.lab.grlaws.ApiGatewayResponse",
-      "allPublicMethods": true
+        "name": "org.apache.logging.log4j.core.lookup.JndiLookup",
+        "methods": [{ "name": "<init>", "parameterTypes": [] }]
+    },
+    {
+        "name": "org.apache.logging.log4j.message.DefaultFlowMessageFactory",
+        "methods": [{ "name": "<init>", "parameterTypes": [] }]
+    },
+    {
+        "name": "org.apache.logging.log4j.message.ReusableMessageFactory",
+        "methods": [{ "name": "<init>", "parameterTypes": [] }]
+    },
+    {
+        "name": "com.comsysto.lab.grlaws.ApiGatewayRequest",
+        "allPublicConstructors": true,
+        "allPublicMethods": true
+    },
+    {
+        "name": "com.comsysto.lab.grlaws.Handler",
+        "allPublicConstructors": true,
+        "allPublicMethods": true
+    },
+    {
+        "name": "java.util.LinkedHashMap",
+        "allPublicConstructors": true,
+        "allPublicMethods": true
+    },
+    {
+        "name": "com.comsysto.lab.grlaws.ApiGatewayResponse",
+        "allPublicMethods": true
     }
-  ]
+]
