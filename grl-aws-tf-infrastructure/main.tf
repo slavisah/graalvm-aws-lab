@@ -75,12 +75,13 @@ module graalvm-ce-256 {
     function_name = "grl-aws-graalvm-ce-256"
     s3_bucket = "${var.s3_bucket}"
     artifact = "grl-aws-graalvm-ce.zip"
-    handler = "com.comsysto.lab.grlaws.Handler::handleRequest"
+    handler = "com.comsysto.lab.grlaws.Handler"
     runtime = "provided"
     memory = "256"
     role = "${aws_iam_role.iam_for_lambda.arn}"
     environment = {
       "owner" = "grl-aws-lab"
+      "DISABLE_SIGNAL_HANDLERS" = "true"
     }
 }
 
