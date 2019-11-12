@@ -12,7 +12,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <maven.compiler.source>1.8</maven.compiler.source>
         <aws-lambda-java-core.version>1.2.0</aws-lambda-java-core.version>
-        <log4j.version>2.8.2</log4j.version>
+        <aws-lambda-java-log4j2.version>1.1.0</aws-lambda-java-log4j2.version>
         <jackson-core.version>2.9.6</jackson-core.version>
         <httpclient.version>4.5.10</httpclient.version>
     </properties>
@@ -24,14 +24,9 @@
             <version>${aws-lambda-java-core.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-core</artifactId>
-            <version>${log4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-api</artifactId>
-            <version>${log4j.version}</version>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-lambda-java-log4j2</artifactId>
+            <version>${aws-lambda-java-log4j2.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -78,10 +73,20 @@
                                         <Main-Class>com.comsysto.lab.grlaws.Application</Main-Class>
                                     </manifestEntries>
                                 </transformer>
+                                <transformer
+                                        implementation="com.github.edwgiz.mavenShadePlugin.log4j2CacheTransformer.PluginsCacheFileTransformer">
+                                </transformer>
                             </transformers>
                         </configuration>
                     </execution>
                 </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.github.edwgiz</groupId>
+                        <artifactId>maven-shade-plugin.log4j2-cachefile-transformer</artifactId>
+                        <version>2.8.1</version>
+                    </dependency>
+                </dependencies>
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
