@@ -16,4 +16,5 @@ resource "aws_lambda_function" "grl_aws_lambda" {
     variables = "${var.environment}"
   }
 
+  timeout = "15"
 }
