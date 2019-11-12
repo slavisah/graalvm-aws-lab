@@ -48,39 +48,37 @@ public class Application {
         ObjectReader cognitoIdReader = objectMapper.readerFor(CognitoIdentity.class);
         ObjectReader clientCtxReader = objectMapper.readerFor(ClientContext.class);
 
-        new Thread(() -> {
 
-            try {
-                URL requestUrl = CustomRuntimeApi.invocationNext();
-                while (running.get()) {
-                    HttpURLConnection requestConnection = (HttpURLConnection) requestUrl.openConnection();
-                    String requestId = requestConnection.getHeaderField(CustomRuntimeApi.LAMBDA_RUNTIME_AWS_REQUEST_ID);
-                    Object response;
-                    try {
-                        Object val = objectReader.readValue(requestConnection.getInputStream());
-                        RequestHandler handler = handlerClass.newInstance();
-                        response = handler.handleRequest(val,
-                                new CustomRuntimeContext(requestConnection, cognitoIdReader, clientCtxReader));
-                    } catch (Exception e) {
-                        log.error("Failure while running lambda", e);
-
-                        postResponse(CustomRuntimeApi.invocationError(requestId),
-                                new Error(e.getClass().getName(), e.getMessage()), objectMapper);
-                        continue;
-                    }
-
-                    postResponse(CustomRuntimeApi.invocationResponse(requestId), response, objectMapper);
-                }
-            } catch (Exception e) {
+        try {
+            URL requestUrl = CustomRuntimeApi.invocationNext();
+            while (running.get()) {
+                HttpURLConnection requestConnection = (HttpURLConnection) requestUrl.openConnection();
+                String requestId = requestConnection.getHeaderField(CustomRuntimeApi.LAMBDA_RUNTIME_AWS_REQUEST_ID);
+                Object response;
                 try {
-                    log.error("First step error", e);
-                    postResponse(CustomRuntimeApi.initError(), new Error(e.getClass().getName(), e.getMessage()),
-                            objectMapper);
-                } catch (Exception ex) {
-                    log.error("Error sending failed!", ex);
+                    Object val = objectReader.readValue(requestConnection.getInputStream());
+                    RequestHandler handler = handlerClass.newInstance();
+                    response = handler.handleRequest(val,
+                            new CustomRuntimeContext(requestConnection, cognitoIdReader, clientCtxReader));
+                } catch (Exception e) {
+                    log.error("Failure while running lambda", e);
+
+                    postResponse(CustomRuntimeApi.invocationError(requestId),
+                            new Error(e.getClass().getName(), e.getMessage()), objectMapper);
+                    continue;
                 }
+
+                postResponse(CustomRuntimeApi.invocationResponse(requestId), response, objectMapper);
             }
-        }, "Lambda").start();
+        } catch (Exception e) {
+            try {
+                log.error("First step error", e);
+                postResponse(CustomRuntimeApi.initError(), new Error(e.getClass().getName(), e.getMessage()),
+                        objectMapper);
+            } catch (Exception ex) {
+                log.error("Error sending failed!", ex);
+            }
+        }
     }
 
     private void postResponse(URL url, Object response, ObjectMapper mapper) throws IOException {
