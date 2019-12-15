@@ -24,7 +24,7 @@
         "methods": [{ "name": "<init>", "parameterTypes": [] }]
     },
     {
-        "name": "com.comsysto.lab.grlaws.ApiGatewayRequest",
+        "name": "com.comsysto.lab.grlaws.Input",
         "allPublicConstructors": true,
         "allPublicMethods": true
     },
@@ -39,7 +39,7 @@
         "allPublicMethods": true
     },
     {
-        "name": "com.comsysto.lab.grlaws.ApiGatewayResponse",
+        "name": "com.comsysto.lab.grlaws.Output",
         "allPublicMethods": true
     }
 ]
