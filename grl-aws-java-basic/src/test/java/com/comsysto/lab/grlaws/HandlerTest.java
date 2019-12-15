@@ -30,7 +30,9 @@ class HandlerTest {
         Handler handler = new Handler();
         when(context.getLogger()).thenReturn(lambdaLogger);
         doNothing().when(lambdaLogger).log(isA(String.class));
-        assertEquals("\"hello\"", handler.handleRequest(new ApiGatewayRequest(), context).getBody());
+        Output expected = new Output().setResult("Hello World");
+        Output actual = handler.handleRequest(new Input().setGreeting("Hello").setName("World"), context);
+        assertEquals(expected.getResult(), actual.getResult());
 
     }
 }
